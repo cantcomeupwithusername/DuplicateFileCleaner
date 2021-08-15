@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using DuplicateFileCleaner;
 using System.Linq;
+using System.Diagnostics;
 
 namespace DuplicateFileCleanerTests.Tests
 {
@@ -16,7 +17,7 @@ namespace DuplicateFileCleanerTests.Tests
         [TestInitialize()]
         public void Initialize()
         {
-            testingEnviroment = new TestingEnviroment( 5, 5, 2 );
+            testingEnviroment = new TestingEnviroment( 5, 6, 2 );
         }
 
         [TestCleanup()]
@@ -24,7 +25,6 @@ namespace DuplicateFileCleanerTests.Tests
         {
             testingEnviroment.Dispose();
         }
-
         [TestMethod]
         public async Task Folder_Cleaned()
         {
@@ -35,8 +35,8 @@ namespace DuplicateFileCleanerTests.Tests
             IDuplicateFileCleaner cleaner = new DuplicateFileCleaner.DuplicateFileCleaner( fileHasheshProvider );
             await cleaner.Clean( foldersSetup.ToCleanPath, foldersSetup.BackupPath );
 
-            var expected = testFiles.OrderBy( h => h.Name ).ToList();
-            var actual = testingEnviroment.GetResult().OrderBy( h => h.Name ).ToList();
+            var expected = testFiles.OrderBy( h => h.Hash ).ToList();
+            var actual = testingEnviroment.GetResult().OrderBy( h => h.Hash ).ToList();
 
             CollectionAssert.AreEqual( expected, actual );
         }
