@@ -34,26 +34,39 @@ namespace DuplicateFileCleaner
             backupFolderPath = Path.Combine( backupFolderPath, backupFolderName );
 
             var map = new HashSet<string>();
+            IList<Task> tasks = new List<Task>();
 
-            await foreach(var fileHashInfo in fileHashInfoProvider.Provide( sourceFolderPath ) )
+            await foreach ( var fileHashInfo in fileHashInfoProvider.Provide( sourceFolderPath ) )
             {
-                if(!map.Contains(fileHashInfo.Hash))
+                var task = Task.Run( () =>
                 {
-                    map.Add( fileHashInfo.Hash );
-                    continue;
-                }
+                    if ( !map.Contains( fileHashInfo.Hash ) )
+                    {
+                        lock ( map )
+                        {
+                            if ( !map.Contains( fileHashInfo.Hash ) )
+                            {
+                                map.Add( fileHashInfo.Hash );
+                                return;
+                            }
+                        }
+                    }
 
-                var sourceFilePath = fileHashInfo.FilePath;
-                var desitnationFilePath = Path.Combine( backupFolderPath, 
-                    Path.GetRelativePath( sourceFolderPath, sourceFilePath ) );
-                var destinationDirectory = Path.GetDirectoryName( desitnationFilePath );
+                    var sourceFilePath = fileHashInfo.FilePath;
+                    var desitnationFilePath = Path.Combine( backupFolderPath,
+                        Path.GetRelativePath( sourceFolderPath, sourceFilePath ) );
+                    var destinationDirectory = Path.GetDirectoryName( desitnationFilePath );
 
-                if ( !Directory.Exists( destinationDirectory ) )
-                    Directory.CreateDirectory( destinationDirectory );
+                    if ( !Directory.Exists( destinationDirectory ) )
+                        Directory.CreateDirectory( destinationDirectory );
 
-                File.Move( sourceFilePath, desitnationFilePath, true );
-                logger?.Write( $"File {sourceFilePath} was moved to {backupFolderName}" );
+                    File.Move( sourceFilePath, desitnationFilePath, true );
+                    logger?.Write( $"File {sourceFilePath} was moved to {backupFolderName}" );
+                } );
+                tasks.Add( task );
             }
+
+            await Task.WhenAll( tasks );
         }
 
         private void InputCheck( string sourceFolderPath, string backupFolderPath )
